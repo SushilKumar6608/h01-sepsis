@@ -1,13 +1,28 @@
+# Data — too large for git
+data/raw/
+data/processed/
+data/tpp/
+
+# EasyTPP run folders — auto-generated, not needed
+models/tpp_sahp/
+models/tpp_sahp_eval/
+
+# Keep only the LSTM AE model
+# models/lstm_ae_best.pt  ← this is already tracked, keep it
+
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
-
-# Data files — too large for git
-data/
-
-# Jupyter checkpoints
 .ipynb_checkpoints/
+
+# PhysioNet manuscript PDF — not ours to redistribute
+physionet_challenge_2019_ccm_manuscript.pdf
+
+# PhysioNet utility diagrams
+utility_nonsepsis_diagram.svg
+utility_sepsis_diagram.svg
+SHA256SUMS.txt
 
 # OS junk
 .DS_Store
