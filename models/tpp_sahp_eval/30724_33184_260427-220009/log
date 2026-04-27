@@ -1,0 +1,3 @@
+2026-04-27 22:00:09,972 - base_runner.py[pid:30724;line:176:save_log] - INFO: Save the log to D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval\30724_33184_260427-220009\log
+2026-04-27 22:00:14,612 - metrics.py[pid:30724;line:18:get_metric_function] - WARNING: Metric is not found: loglike
+2026-04-27 22:00:14,692 - tpp_runner.py[pid:30724;line:60:_init_model] - INFO: Num of model parameters 8652

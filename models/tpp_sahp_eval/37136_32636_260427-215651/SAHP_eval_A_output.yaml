@@ -1,0 +1,54 @@
+data_config:
+  train_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\train.json
+  valid_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\dev.json
+  test_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\test.json
+  data_format: json
+  data_specs:
+    num_event_types: 14
+    pad_token_id: 14
+    padding_side: right
+    truncation_side: null
+    padding_strategy: null
+    truncation_strategy: null
+    max_len: 300
+base_config:
+  stage: predict
+  backend: torch
+  dataset_id: sepsis_icu
+  runner_id: std_tpp
+  model_id: SAHP
+  base_dir: D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval
+  specs:
+    log_folder: D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval\37136_32636_260427-215651
+    saved_model_dir: D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval\37136_32636_260427-215651\models\saved_model
+    saved_log_dir: D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval\37136_32636_260427-215651\log
+    output_config_dir: D:\Egna projekt\h01-sepsis\models\tpp_sahp_eval\37136_32636_260427-215651\SAHP_eval_A_output.yaml
+model_config:
+  rnn_type: LSTM
+  hidden_size: 32
+  time_emb_size: 16
+  num_layers: 2
+  sharing_param_layer: false
+  loss_integral_num_sample_per_step: 20
+  dropout_rate: 0.0
+  use_ln: false
+  thinning: null
+  num_event_types_pad: 15
+  num_event_types: 14
+  event_pad_index: 14
+  model_id: SAHP
+  pretrained_model_dir: null
+  gpu: -1
+  model_specs: {}
+trainer_config:
+  seed: 42
+  gpu: -1
+  batch_size: 64
+  max_epoch: 1
+  shuffle: false
+  optimizer: adam
+  learning_rate: 0.001
+  valid_freq: 1
+  use_tfb: false
+  metrics:
+  - loglike
