@@ -1,0 +1,38 @@
+pipeline_config_id: runner_config
+
+SAHP_sepsis:
+  base_config:
+    stage: train
+    backend: torch
+    dataset_id: sepsis_icu
+    model_id: SAHP
+    runner_id: std_tpp
+    base_dir: D:\Egna projekt\h01-sepsis\models\tpp_sahp
+
+  model_config:
+    hidden_size: 32
+    num_heads: 2
+    num_layers: 2
+    dropout: 0.1
+
+  trainer_config:
+    batch_size: 64
+    max_epoch: 30
+    learning_rate: 1.0e-3
+    valid_freq: 1
+    use_tfb: false
+    metrics: [ 'loglike' ]
+    seed: 42
+    gpu: -1
+
+data:
+  sepsis_icu:
+    data_format: json
+    train_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\train.json
+    valid_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\dev.json
+    test_dir: D:\Egna projekt\h01-sepsis\data\tpp\easytpp\test.json
+    data_specs:
+      num_event_types: 14
+      pad_token_id: 14
+      padding_side: right
+      max_len: 300
