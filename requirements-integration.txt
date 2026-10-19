@@ -1,0 +1,40 @@
+# H01 v2 — integration layer dependencies
+# Install into the EXISTING h01-sepsis conda environment:
+#
+#   conda activate h01-sepsis
+#   pip install -r requirements-integration.txt --break-system-packages
+#
+# The original model dependencies (torch, numpy, pandas, scikit-learn, shap)
+# are already installed; this file adds only what the integration layer needs.
+
+# ── HL7v2 / FHIR parsing ──────────────────────────────────────────────────────
+hl7>=0.4.5           # python-hl7: parse HL7v2 messages
+fhir.resources>=7.1  # Pydantic-based FHIR R4 resource models
+
+# ── API and data layer ────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sqlalchemy>=2.0.30
+alembic>=1.13.1
+psycopg2-binary>=2.9.9   # PostgreSQL driver (binary wheel, no build deps)
+pydantic>=2.7.0          # already pulled in by fhir.resources; keep explicit
+
+# ── data formats ──────────────────────────────────────────────────────────────
+pyarrow>=16.0.0      # Parquet read/write (used for golden fixture)
+pyyaml>=6.0.1        # features.yaml and hospital_profiles.yaml
+
+# ── LLM (Phase 6) ────────────────────────────────────────────────────────────
+boto3>=1.34.0        # AWS SDK for Bedrock (Converse API)
+anthropic>=0.28.0    # fallback if Bedrock not available
+
+# ── observability (Phase 7) ──────────────────────────────────────────────────
+structlog>=24.1.0
+prometheus-client>=0.20.0
+
+# ── code quality (CI) ────────────────────────────────────────────────────────
+pytest>=8.2.0
+httpx>=0.27.0        # async test client for FastAPI
+black>=24.4.2
+flake8>=7.0.0
+mypy>=1.10.0
+pre-commit>=3.7.1

@@ -1,0 +1,38 @@
+{
+  "nonsepsis_patient": "p000001.psv",
+  "sepsis_patient": "p000009.psv",
+  "n_windows": 188,
+  "window_shape": [
+    188,
+    72,
+    14
+  ],
+  "n_sepsis_windows": 187,
+  "n_nonsepsis_windows": 1,
+  "score_min": 0.1580548733472824,
+  "score_max": 0.2811878025531769,
+  "score_mean": 0.20161359012126923,
+  "ae_checkpoint": "D:\\Egna projekt\\h01-sepsis\\models\\lstm_ae_best.pt",
+  "mean_A_npy": "D:\\Egna projekt\\h01-sepsis\\data\\processed\\mean_A.npy",
+  "std_A_npy": "D:\\Egna projekt\\h01-sepsis\\data\\processed\\std_A.npy",
+  "features": [
+    "HR",
+    "O2Sat",
+    "Resp",
+    "SBP",
+    "MAP",
+    "Temp",
+    "Glucose",
+    "DBP",
+    "Creatinine",
+    "BUN",
+    "Potassium",
+    "WBC",
+    "Platelets",
+    "Hgb"
+  ],
+  "n_features": 14,
+  "max_seq_len": 72,
+  "window_step": 1,
+  "dataset": "PhysioNet_CinC_2019"
+}
