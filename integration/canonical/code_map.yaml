@@ -1,0 +1,127 @@
+# Phase 2 - Code mapping: local Hospital A codes -> canonical LOINC codes
+#
+# Each entry maps a local_code (as it arrives in OBX.3) to:
+#   loinc_code   : LOINC code string
+#   display_name : human-readable canonical name
+#   unit         : expected canonical unit (used for validation)
+#   min_value    : physiologically plausible lower bound (for range validation)
+#   max_value    : physiologically plausible upper bound (for range validation)
+#   required     : whether this observation must be present for a complete panel
+#
+# Sources for normal ranges: PhysioNet CinC 2019 challenge documentation
+# and standard clinical reference values.  These are intentionally wide -
+# extreme-but-possible values should not be quarantined, only truly
+# impossible ones (e.g. negative heart rate).
+
+mappings:
+  HR_LOC:
+    loinc_code:   "8867-4"
+    display_name: "Heart rate"
+    unit:         "/min"
+    min_value:    0.0
+    max_value:    300.0
+    required:     true
+
+  SPO2_LOC:
+    loinc_code:   "59408-5"
+    display_name: "Oxygen saturation"
+    unit:         "%"
+    min_value:    0.0
+    max_value:    100.0
+    required:     true
+
+  RESP_LOC:
+    loinc_code:   "9279-1"
+    display_name: "Respiratory rate"
+    unit:         "/min"
+    min_value:    0.0
+    max_value:    100.0
+    required:     false
+
+  SBP_LOC:
+    loinc_code:   "8480-6"
+    display_name: "Systolic blood pressure"
+    unit:         "mm[Hg]"
+    min_value:    0.0
+    max_value:    400.0
+    required:     true
+
+  MAP_LOC:
+    loinc_code:   "8478-0"
+    display_name: "Mean arterial pressure"
+    unit:         "mm[Hg]"
+    min_value:    0.0
+    max_value:    400.0
+    required:     false
+
+  TEMP_LOC:
+    loinc_code:   "8310-5"
+    display_name: "Body temperature"
+    unit:         "Cel"
+    min_value:    25.0
+    max_value:    45.0
+    required:     false
+
+  GLUC_LOC:
+    loinc_code:   "15074-8"
+    display_name: "Glucose"
+    unit:         "mg/dL"
+    min_value:    0.0
+    max_value:    2000.0
+    required:     false
+
+  DBP_LOC:
+    loinc_code:   "8462-4"
+    display_name: "Diastolic blood pressure"
+    unit:         "mm[Hg]"
+    min_value:    0.0
+    max_value:    300.0
+    required:     false
+
+  CREAT_LOC:
+    loinc_code:   "2160-0"
+    display_name: "Creatinine"
+    unit:         "mg/dL"
+    min_value:    0.0
+    max_value:    50.0
+    required:     false
+
+  BUN_LOC:
+    loinc_code:   "3094-0"
+    display_name: "Blood urea nitrogen"
+    unit:         "mg/dL"
+    min_value:    0.0
+    max_value:    300.0
+    required:     false
+
+  K_LOC:
+    loinc_code:   "2823-3"
+    display_name: "Potassium"
+    unit:         "mEq/L"
+    min_value:    0.0
+    max_value:    20.0
+    required:     false
+
+  WBC_LOC:
+    loinc_code:   "6690-2"
+    display_name: "White blood cell count"
+    unit:         "10*3/uL"
+    min_value:    0.0
+    max_value:    500.0
+    required:     false
+
+  PLT_LOC:
+    loinc_code:   "777-3"
+    display_name: "Platelets"
+    unit:         "10*3/uL"
+    min_value:    0.0
+    max_value:    3000.0
+    required:     false
+
+  HGB_LOC:
+    loinc_code:   "718-7"
+    display_name: "Hemoglobin"
+    unit:         "g/dL"
+    min_value:    0.0
+    max_value:    30.0
+    required:     false
