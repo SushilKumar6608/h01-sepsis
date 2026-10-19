@@ -1,1 +1,1 @@
-# integration/simulate package
+# simulate package

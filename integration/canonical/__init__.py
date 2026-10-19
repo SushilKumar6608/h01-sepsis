@@ -1,1 +1,1 @@
-# integration/canonical package
+# canonical package

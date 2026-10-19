@@ -1,0 +1,33 @@
+# Hospital sender profiles for the HL7v2 generator
+# Each hospital uses its own local lab codes and units.
+# The mapping to LOINC is defined in integration/mapping/features.yaml
+# and will be populated in Phase 2.
+
+hospital_A:
+  sending_application: HOSP_A_LIS
+  sending_facility: HOSP_A
+  receiving_application: INTEGRATION
+  receiving_facility: PLATFORM
+  hl7_version: "2.5"
+  timezone_offset: "+0000"   # UTC — timestamps sent in UTC
+  local_codes:
+    HR:         { code: HR_LOC,   description: "Heart rate",               unit: bpm }
+    O2Sat:      { code: SPO2_LOC, description: "Oxygen saturation SpO2",   unit: "%" }
+    Resp:       { code: RR_LOC,   description: "Respiratory rate",         unit: "/min" }
+    SBP:        { code: SBP_LOC,  description: "Systolic blood pressure",  unit: mmHg }
+    MAP:        { code: MAP_LOC,  description: "Mean arterial pressure",   unit: mmHg }
+    Temp:       { code: TEMP_LOC, description: "Body temperature",         unit: degC }
+    Glucose:    { code: GLU_LOC,  description: "Blood glucose",            unit: "mg/dL" }
+    DBP:        { code: DBP_LOC,  description: "Diastolic blood pressure", unit: mmHg }
+    Creatinine: { code: CREA_LOC, description: "Serum creatinine",         unit: "mg/dL" }
+    BUN:        { code: BUN_LOC,  description: "Blood urea nitrogen",      unit: "mg/dL" }
+    Potassium:  { code: K_LOC,    description: "Serum potassium",          unit: "mEq/L" }
+    WBC:        { code: WBC_LOC,  description: "White blood cell count",   unit: "10*3/uL" }
+    Platelets:  { code: PLT_LOC,  description: "Platelet count",           unit: "10*3/uL" }
+    Hgb:        { code: HGB_LOC,  description: "Haemoglobin",              unit: "g/dL" }
+  # Deliberate quirks injected to make parsing realistic:
+  quirks:
+    - trailing_whitespace      # some OBX values have trailing spaces
+    - missing_obx_units        # ~10% of OBX segments omit the units field
+    - custom_z_segment         # every message includes a ZPT (patient transport) segment
+    - occasional_empty_value   # ~5% of OBX observations have empty value (NaN in source)
