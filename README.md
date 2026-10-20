@@ -1,184 +1,330 @@
-# Clinical Event Sequence Anomaly Detection for Sepsis Early Warning
+# H01 v2 - Sepsis Early Warning: Clinical Event Sequence Anomaly Detection
 
-Unsupervised anomaly detection on ICU clinical event sequences using LSTM Autoencoder
-and Neural Temporal Point Process (SAHP). Trained exclusively on non-sepsis patients —
-no sepsis cases seen during training.
+Unsupervised sepsis early-warning system built on the PhysioNet/Computing in
+Cardiology Challenge 2019 dataset (40,336 patients across two hospitals).
+The core model is trained **only on non-sepsis patients**: sepsis presentations
+are detected as anomalous reconstructions rather than learned from positive
+labels.
 
-**Dataset:** PhysioNet/Computing in Cardiology Challenge 2019
-**Patients:** 40,336 ICU patients across two hospital systems
-**Task:** Flag patients likely to develop sepsis before clinical onset
+This repository contains two layers built in sequence:
+
+1. **ML core** (`src/`) - LSTM Autoencoder trained on Set A non-sepsis patients.
+2. **Integration layer** (`integration/`) - HL7v2 ingestion, canonical LOINC
+   mapping, FHIR parity checking, and a scoring API that wraps the model behind
+   a REST endpoint returning FHIR R4 RiskAssessment resources.
+
+> **Synthetic / public data only.** All data is from the public PhysioNet
+> challenge. No real patient records are used or referenced anywhere in this
+> project.
 
 ---
 
 ## Results
 
-| Model | Hospital A AUC-ROC | Hospital B AUC-ROC | Approach |
-|---|---|---|---|
-| LSTM Autoencoder | **0.926** | **0.762** | Reconstruction error on vital signs + labs |
-| SAHP Neural TPP | 0.58 | 0.53 | Log-likelihood of measurement timing patterns |
-
-**Key finding:** Value-based anomaly detection substantially outperforms timing-based
-detection in ICU settings. Sepsis patients' measurement sequences are denser and more
-regular — clinicians respond to deterioration by increasing monitoring frequency, making
-timing patterns counterintuitively normal. This contrasts with industrial IoT settings
-where event timing is highly informative.
-
-The cross-hospital AUC drop (0.926 → 0.762) reflects genuine distributional shift
-between Hospital A and Hospital B — different monitoring equipment, lab protocols, and
-patient populations. The model is normalized on Hospital A statistics only.
-
----
-
-## SHAP Feature Importance
-
-Top features driving sepsis detection (LSTM AE, Hospital A):
-
-| Rank | Feature | Clinical meaning |
+| Model | AUC-ROC (Hospital A) | AUC-ROC (Hospital B) |
 |---|---|---|
-| 1 | WBC | White blood cell count — primary infection marker |
-| 2 | BUN | Blood urea nitrogen — kidney dysfunction |
-| 3 | Platelets | Dropping platelets signal coagulation failure |
-| 4 | Creatinine | Kidney failure marker consistent with BUN |
-| 5 | MAP | Mean arterial pressure — septic shock criterion |
+| LSTM Autoencoder (reconstruction error) | **0.926** | **0.762** |
+| SAHP Neural TPP (log-likelihood of timing) | 0.58 | 0.53 |
 
-The model independently learned clinically validated sepsis markers (Sepsis-3 criteria)
-without any supervision — purely from reconstruction error patterns.
+The LSTM AE outperforms the timing-based approach. Sepsis patients receive
+denser, more regular monitoring - their measurement timing looks normal. The
+drop from Set A to Set B reflects distribution shift: normalisation statistics
+were computed on Set A non-sepsis windows only.
 
----
-
-## Methodology
-
-    Raw .psv files (40,336 patients)
-             |
-             v
-    Feature selection (14 features: 7 vitals + 7 labs)
-             |
-             v
-    Imputation (forward-fill → backward-fill → global medians)
-             |
-             v
-    Normalization (z-score, computed on non-sepsis train set only)
-             |
-             v
-    Sliding window segmentation (72h windows, step=1h)
-             |
-             v
-    +---------------------------+    +---------------------------+
-    |   LSTM Autoencoder        |    |   SAHP (Neural TPP)       |
-    |   Train on normal only    |    |   Train on normal only    |
-    |   Reconstruction error    |    |   Event timing likelihood |
-    |   = anomaly score         |    |   = anomaly score         |
-    +---------------------------+    +---------------------------+
-             |                                |
-        AUC-ROC 0.926                   AUC-ROC 0.58
-             |
-             v
-    SHAP Explainability
-    (WBC, BUN, Platelets, Creatinine, MAP)
-
-### Why unsupervised?
-
-Sepsis labels are expensive, inconsistent across hospitals, and only available
-retrospectively. An unsupervised model trained only on normal patients generalizes
-better across hospital systems and requires no labelled data at deployment time.
+**SHAP top drivers** (features most associated with elevated reconstruction
+error): WBC, BUN, Platelets, Creatinine, MAP.
 
 ---
 
-## Dataset
+## Architecture
 
-Source: PhysioNet Challenge 2019 — https://physionet.org/content/challenge-2019/1.0.0/
-
-Reyna et al., "Early Prediction of Sepsis from Clinical Data", Critical Care Medicine, 2020.
-
-- Hospital A: 20,336 patients | 8.8% sepsis prevalence
-- Hospital B: 20,000 patients | 5.7% sepsis prevalence
-- Features: 8 vital signs, 26 lab values, 6 demographics
-- Median ICU stay: ~39 hours
-
-**Labelling:** Patient-level — all windows from a sepsis patient are labelled positive,
-reflecting the clinical task of flagging at-risk patients early, not detecting the
-exact onset hour.
-
----
-
-## Project Structure
-
-    h01-sepsis/
-    +-- data/
-    |   +-- raw/              (original .psv files, not tracked in git)
-    |   +-- processed/        (normalized numpy arrays)
-    |   +-- tpp/              (TPP event sequences)
-    +-- src/
-    |   +-- preprocessing.py       (feature engineering + windowing)
-    |   +-- lstm_ae.py             (LSTM Autoencoder model)
-    |   +-- train_lstm_ae.py       (training script)
-    |   +-- evaluate_lstm_ae.py    (AUC-ROC evaluation)
-    |   +-- explain_lstm_ae.py     (SHAP explainability)
-    |   +-- tpp_preprocessing.py   (TPP event sequence conversion)
-    |   +-- tpp_data_converter.py  (EasyTPP format converter)
-    |   +-- train_tpp.py           (SAHP training via EasyTPP)
-    |   +-- evaluate_tpp.py        (TPP evaluation)
-    +-- configs/
-    |   +-- sahp.yaml              (EasyTPP training config)
-    +-- models/                    (saved model checkpoints)
-    +-- notebooks/
-    |   +-- 01_exploration.ipynb
-    |   +-- lstm_ae_results.png
-    |   +-- shap_feature_importance.png
-    |   +-- tpp_results.png
-    |   +-- dashboard.html
-    +-- README.md
+```
+HL7v2 ORU^R01 message
+        |
+        v
+POST /ingest/hl7v2          # integration/ingest/api.py
+        |
+        |- parse (integration/ingest/hl7v2_parser.py)
+        |- store raw + SHA-256 dedup (integration/ingest/raw_store.py)
+        |- map to LOINC (integration/canonical/mapper.py)
+        |
+        v
+POST /score?control_id=...  # same api.py
+        |
+        |- re-fetch raw from SQLite
+        |- re-parse + re-map
+        |- build (72, 14) feature sequence (integration/scoring/scorer.py)
+        |- LSTM AE reconstruction error (src/lstm_ae.py)
+        |- risk level: LOW / MODERATE / HIGH
+        |
+        v
+FHIR R4 RiskAssessment (integration/scoring/fhir_risk_assessment.py)
+```
 
 ---
 
-## Reproducing Results
+## ML Core (`src/`)
 
-Step 1 — Setup environment
+### Model
 
-    conda create -n h01-sepsis python=3.10 -y
-    conda activate h01-sepsis
-    pip install torch numpy pandas scikit-learn matplotlib seaborn shap jupyter tqdm easy-tpp
+**LSTM Autoencoder** - encodes a 72-hour sliding window of 14 vital/lab
+features into a compact latent representation and reconstructs it. Reconstruction
+error is used as the anomaly score.
 
-Step 2 — Download dataset from PhysioNet Challenge 2019 and extract to data/raw/
+| Hyperparameter | Value |
+|---|---|
+| Architecture | LSTM Autoencoder |
+| Input features | 14 (7 vitals, 7 labs) |
+| Sequence length | 72 hours |
+| Hidden dim | 64 |
+| Layers | 2 |
+| Dropout | 0.2 |
 
-Step 3 — Run pipeline in order
+**Features (in model order):**
+HR, O2Sat, Resp, SBP, MAP, Temp, Glucose, DBP, Creatinine, BUN, Potassium,
+WBC, Platelets, Hgb
 
-    python src/preprocessing.py
-    python src/train_lstm_ae.py
-    python src/evaluate_lstm_ae.py
-    python src/explain_lstm_ae.py
-    python src/tpp_preprocessing.py
-    python src/tpp_data_converter.py
-    python src/train_tpp.py
-    python src/evaluate_tpp.py
+### Risk thresholds (tuned on Set A test windows)
+
+| Risk level | Reconstruction error |
+|---|---|
+| LOW | < 0.10 |
+| MODERATE | 0.10 - 0.25 |
+| HIGH | >= 0.25 |
+
+### Preprocessing
+
+- Forward/backward fill within each patient time series, then global median
+  imputation for remaining gaps.
+- Z-score normalisation using mean and standard deviation computed on Set A
+  non-sepsis training windows (`data/processed/mean_A.npy`,
+  `data/processed/std_A.npy`).
+- 72-hour sliding windows with 1-hour steps. Labels are patient-level: every
+  window from a sepsis patient is treated as positive.
+
+### Training
+
+```
+conda activate D:\conda-envs\h01-sepsis
+python src/train.py
+```
+
+### Evaluation
+
+```
+python src/evaluate.py
+```
 
 ---
 
-## Relevance to Healthcare AI
+## Integration Layer (`integration/`)
 
-This project directly addresses priorities stated by Swedish healthcare providers for 2026:
+Built on top of the trained model to demonstrate a realistic clinical
+integration path. All data remains synthetic; the HL7v2 messages used in
+tests are hand-crafted.
 
-- Early warning: flags sepsis risk hours before clinical onset
-- Explainability: SHAP identifies which lab values drove the alert
-- No labelled data required: trained only on normal patient sequences
-- Cross-hospital generalization: evaluated on two distinct hospital systems
+### Phase 1 - HL7v2 ingestion
 
-Sepsis affects approximately 50 million people annually and carries 20-30% mortality.
-Every hour of delayed treatment increases mortality by approximately 7%.
+`POST /ingest/hl7v2` accepts a raw HL7v2 ORU^R01 message (plain text body),
+parses it, deduplicates by SHA-256 hash, stores it in SQLite, and returns a
+summary including the `control_id` needed for scoring.
+
+- Parser: `integration/ingest/hl7v2_parser.py`
+- Storage: `integration/ingest/raw_store.py` (SQLAlchemy / SQLite)
+- Idempotent: re-submitting the same message returns HTTP 409 with the
+  existing record's ID.
+
+### Phase 2 - Canonical mapping
+
+Maps local hospital observation codes to LOINC codes using a YAML code map
+(`integration/canonical/code_map.yaml`). Unmapped codes are preserved with a
+warning so no data is silently dropped.
+
+- Mapper: `integration/canonical/mapper.py`
+
+### Phase 3 - FHIR parity checker
+
+Validates that a FHIR R4 Observation resource carries an equivalent
+observation to the parsed HL7v2 source. Reports coverage gaps and mismatches.
+
+- Checker: `integration/fhir/parity_checker.py`
+
+### Phase 4 - Scoring pipeline
+
+`POST /score?control_id=<id>` retrieves the raw HL7v2 by control_id,
+re-parses and re-maps it, builds a (72, 14) feature sequence, runs the LSTM
+AE, and returns a **FHIR R4 RiskAssessment** resource.
+
+- Sequence builder + scorer: `integration/scoring/scorer.py`
+- FHIR output: `integration/scoring/fhir_risk_assessment.py`
+
+**Example RiskAssessment response:**
+
+```json
+{
+  "resourceType": "RiskAssessment",
+  "id": "MSG001",
+  "status": "final",
+  "subject": { "reference": "Patient/P001" },
+  "encounter": { "reference": "Encounter/MSG001" },
+  "occurrenceDateTime": "2025-03-15T08:00:00+00:00",
+  "basis": [{ "reference": "Device/lstm-ae-sepsis-lstm_ae_best.pt" }],
+  "prediction": [{
+    "outcome": { "text": "Sepsis risk - MODERATE" },
+    "probabilityDecimal": 0.1423,
+    "rationale": "LSTM Autoencoder reconstruction error; thresholds: LOW < 0.10, MODERATE 0.10-0.25, HIGH >= 0.25"
+  }],
+  "note": [{ "text": "Features used: 14; features imputed: 0; model: lstm_ae_best.pt" }]
+}
+```
 
 ---
 
-## Connection to Industrial IoT Thesis
+## Setup
 
-This project extends the methodology from an MSc thesis on unsupervised anomaly
-detection in industrial IoT door event sequences (ASSA ABLOY Entrance Systems, 2026)
-to clinical ICU event sequences — same architecture (LSTM AE + Neural TPP), new domain,
-stronger societal impact. The contrasting TPP results between domains reveal a fundamental
-difference: industrial event timing is highly structured and anomaly-revealing, while
-clinical measurement timing reflects clinician response rather than patient physiology.
+### Prerequisites
+
+- Anaconda / Miniconda
+- Python 3.10+
+- CUDA optional (CPU inference is fast enough for the model size)
+
+### Create environment
+
+```bash
+conda create -p D:\conda-envs\h01-sepsis python=3.10 -y
+conda activate D:\conda-envs\h01-sepsis
+pip install -r requirements.txt
+```
+
+### Download data
+
+Data is from the PhysioNet/CinC 2019 Challenge (public):
+https://physionet.org/content/challenge-2019/1.0.0/
+
+Extract Set A to `data/raw/training_setA/` and Set B to
+`data/raw/training_setB/`.
 
 ---
 
-## Author
+## Reproduction - ML core
 
-Sushil | MSc AI and Automation, University West, Sweden | 2026
+Run these scripts in order from the repo root (Anaconda Prompt):
+
+```
+1. python src/load_data.py
+2. python src/eda.py
+3. python src/preprocessing.py
+4. python src/train.py
+5. python src/evaluate.py
+6. python src/shap_analysis.py
+7. python src/neural_tpp.py
+8. python src/evaluate_tpp.py
+```
+
+---
+
+## Running the API
+
+```bash
+cd D:\Egna projekt\h01-sepsis
+set DATABASE_URL=sqlite:///integration/h01v2_dev.db
+python -m uvicorn integration.ingest.api:app --reload --port 8000
+```
+
+Interactive docs: http://localhost:8000/docs
+
+**Ingest a message:**
+```bash
+curl -X POST http://localhost:8000/ingest/hl7v2 \
+  -H "Content-Type: text/plain" \
+  --data-binary @path/to/message.hl7
+```
+
+**Score it:**
+```bash
+curl -X POST "http://localhost:8000/score?control_id=MSG001"
+```
+
+---
+
+## Tests
+
+```bash
+conda activate D:\conda-envs\h01-sepsis
+pytest integration/tests/ -v
+```
+
+72 tests across 4 phases:
+
+| Test file | Tests | Covers |
+|---|---|---|
+| `test_phase1.py` | 24 | HL7v2 parsing, raw storage, ingest endpoint |
+| `test_phase2.py` | 12 | LOINC mapping, unmapped code handling |
+| `test_phase3.py` | 12 | FHIR parity checker |
+| `test_phase4.py` | 24 | Sequence builder, scorer thresholds, FHIR output shape, real-model integration |
+
+Phase 4 integration tests (`TestScorerIntegration`) run automatically when
+`models/lstm_ae_best.pt`, `data/processed/mean_A.npy`, and
+`data/processed/std_A.npy` are present; otherwise they are skipped.
+
+---
+
+## Repository structure
+
+```
+h01-sepsis/
+|- src/                        # ML core (read-only from integration layer)
+|  |- lstm_ae.py               # LSTM Autoencoder model definition
+|  |- preprocessing.py         # feature order, imputation, normalisation
+|  |- train.py
+|  |- evaluate.py
+|  |- shap_analysis.py
+|  |- neural_tpp.py
+|  |- evaluate_tpp.py
+|- integration/
+|  |- ingest/
+|  |  |- api.py                # FastAPI app (POST /ingest/hl7v2, POST /score)
+|  |  |- hl7v2_parser.py
+|  |  |- raw_store.py          # SQLAlchemy ORM + dedup
+|  |- canonical/
+|  |  |- mapper.py             # local code -> LOINC mapping
+|  |  |- code_map.yaml
+|  |  |- db.py                 # SQLAlchemy session factory
+|  |- fhir/
+|  |  |- parity_checker.py
+|  |- scoring/
+|  |  |- scorer.py             # sequence builder + LSTM AE wrapper
+|  |  |- fhir_risk_assessment.py
+|  |- tests/
+|  |  |- test_phase1.py
+|  |  |- test_phase2.py
+|  |  |- test_phase3.py
+|  |  |- test_phase4.py
+|- models/
+|  |- lstm_ae_best.pt          # trained weights (not tracked in git)
+|- data/
+|  |- raw/                     # PhysioNet challenge data (not tracked in git)
+|  |- processed/
+|  |  |- mean_A.npy            # Set A non-sepsis training mean
+|  |  |- std_A.npy             # Set A non-sepsis training std
+|- notebooks/
+|  |- 01_exploration.ipynb
+|- requirements.txt
+```
+
+---
+
+## Context
+
+Built as a portfolio project for a healthcare Forward Deployed AI Engineer
+interview. The project demonstrates:
+
+- Unsupervised anomaly detection applied to clinical time series.
+- A production-style integration layer: standards-based ingestion (HL7v2),
+  canonical coding (LOINC/UCUM), interoperability output (FHIR R4), and a
+  fully-tested REST API.
+- Cross-hospital generalisation analysis and honest reporting of distribution
+  shift (Set A -> Set B AUC drop from 0.926 to 0.762).
+
+The approach follows on from MSc thesis work on unsupervised anomaly detection
+in industrial IoT sequences, adapted to clinical settings.
