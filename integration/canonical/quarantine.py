@@ -17,6 +17,8 @@ Table: quarantine_items
   - reason_code    : e.g. UNMAPPED_CODE, OUT_OF_RANGE, MISSING_REQUIRED
   - reason_detail  : human-readable explanation
   - raw_sha256     : SHA-256 of the original raw HL7 message (for lookup)
+  - mapping_version: version string of the code_map.yaml used (FK to
+                     mapping_registry.version)
   - created_at     : insert timestamp
   - replayed_at    : NULL until successfully replayed
   - replayed_ok    : NULL / True / False
@@ -24,6 +26,10 @@ Table: quarantine_items
 Design: the quarantine table is separate from raw_messages and the
 canonical store. A replayed item that passes validation moves to the
 canonical store; its replayed_at and replayed_ok columns are updated.
+
+Bugfix (post-Phase-3): Base is now imported from integration.canonical.db
+so all ORM models share one metadata registry and init_db() can create
+all tables in a single create_all() call.
 """
 from __future__ import annotations
 
@@ -31,16 +37,13 @@ import datetime
 import logging
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, Session
 
+from integration.canonical.db import Base
 from integration.canonical.validator import ValidationResult, ValidatedObservation
 
 logger = logging.getLogger(__name__)
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 class QuarantineItem(Base):
@@ -65,6 +68,14 @@ class QuarantineItem(Base):
     # Linkback to raw message
     raw_sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
 
+    # Which mapping version produced this quarantine entry (NULL = pre-registry)
+    mapping_version: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        ForeignKey("mapping_registry.version", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Timestamps
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
@@ -83,6 +94,7 @@ def store_quarantine_items(
     session: Session,
     result: ValidationResult,
     raw_sha256: str,
+    mapping_version: Optional[str] = None,
 ) -> list[QuarantineItem]:
     """Persist all ERROR-severity quarantine reasons from a ValidationResult.
 
@@ -90,7 +102,20 @@ def store_quarantine_items(
       - quarantined observation (per-observation error reasons)
       - message-level reason (MISSING_REQUIRED, etc.)
 
-    Returns the list of inserted QuarantineItem objects.
+    Parameters
+    ----------
+    session : Session
+    result : ValidationResult
+    raw_sha256 : str
+        SHA-256 of the original raw message.
+    mapping_version : str, optional
+        Version string from the mapping registry that was active when this
+        message was processed.  Stored for experiment tracking.
+
+    Returns
+    -------
+    list[QuarantineItem]
+        The inserted objects (already flushed, not committed).
     """
     items: list[QuarantineItem] = []
 
@@ -111,6 +136,7 @@ def store_quarantine_items(
                 reason_detail=reason.detail,
                 severity=reason.severity,
                 raw_sha256=raw_sha256,
+                mapping_version=mapping_version,
             )
             session.add(item)
             items.append(item)
@@ -131,15 +157,17 @@ def store_quarantine_items(
             reason_detail=reason.detail,
             severity=reason.severity,
             raw_sha256=raw_sha256,
+            mapping_version=mapping_version,
         )
         session.add(item)
         items.append(item)
 
     session.flush()
     logger.debug(
-        "Quarantined %d item(s) for control_id=%s",
+        "Quarantined %d item(s) for control_id=%s (mapping_version=%s)",
         len(items),
         result.control_id,
+        mapping_version,
     )
     return items
 

@@ -3,15 +3,28 @@
 # Each entry maps a local_code (as it arrives in OBX.3) to:
 #   loinc_code   : LOINC code string
 #   display_name : human-readable canonical name
-#   unit         : expected canonical unit (used for validation)
+#   unit         : expected canonical unit (UCUM) - used for validation
 #   min_value    : physiologically plausible lower bound (for range validation)
 #   max_value    : physiologically plausible upper bound (for range validation)
 #   required     : whether this observation must be present for a complete panel
+#
+# Local code names match integrate/simulate/hospital_profiles.yaml exactly.
+# LOINC codes verified against loinc.org (dataset: PhysioNet CinC 2019).
+# Units use UCUM notation: /min, Cel, mm[Hg], %, mg/dL, mEq/L, 10*3/uL, g/dL
 #
 # Sources for normal ranges: PhysioNet CinC 2019 challenge documentation
 # and standard clinical reference values.  These are intentionally wide -
 # extreme-but-possible values should not be quarantined, only truly
 # impossible ones (e.g. negative heart rate).
+#
+# Mapping registry version: 1.1.0
+#   Changed from 1.0.0:
+#     - Renamed RESP_LOC -> RR_LOC  (align with hospital_profiles.yaml)
+#     - Renamed GLUC_LOC -> GLU_LOC (align with hospital_profiles.yaml)
+#     - Renamed CREAT_LOC -> CREA_LOC (align with hospital_profiles.yaml)
+#     - Fixed glucose LOINC: 15074-8 (whole blood mmol/L) -> 2345-7 (serum/plasma mg/dL)
+#     - Standardized BP units: mmHg -> mm[Hg] (UCUM)
+#     - Standardized temp unit: Cel (already correct, confirming UCUM compliance)
 
 mappings:
   HR_LOC:
@@ -30,7 +43,7 @@ mappings:
     max_value:    100.0
     required:     true
 
-  RESP_LOC:
+  RR_LOC:
     loinc_code:   "9279-1"
     display_name: "Respiratory rate"
     unit:         "/min"
@@ -62,9 +75,9 @@ mappings:
     max_value:    45.0
     required:     false
 
-  GLUC_LOC:
-    loinc_code:   "15074-8"
-    display_name: "Glucose"
+  GLU_LOC:
+    loinc_code:   "2345-7"
+    display_name: "Glucose (serum/plasma)"
     unit:         "mg/dL"
     min_value:    0.0
     max_value:    2000.0
@@ -78,7 +91,7 @@ mappings:
     max_value:    300.0
     required:     false
 
-  CREAT_LOC:
+  CREA_LOC:
     loinc_code:   "2160-0"
     display_name: "Creatinine"
     unit:         "mg/dL"

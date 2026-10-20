@@ -67,8 +67,8 @@ class TestMapper:
         from integration.canonical.mapper import get_map
 
         expected = {
-            "HR_LOC", "SPO2_LOC", "RESP_LOC", "SBP_LOC", "MAP_LOC",
-            "TEMP_LOC", "GLUC_LOC", "DBP_LOC", "CREAT_LOC", "BUN_LOC",
+            "HR_LOC", "SPO2_LOC", "RR_LOC", "SBP_LOC", "MAP_LOC",
+            "TEMP_LOC", "GLU_LOC", "DBP_LOC", "CREA_LOC", "BUN_LOC",
             "K_LOC", "WBC_LOC", "PLT_LOC", "HGB_LOC",
         }
         assert expected.issubset(get_map().keys())

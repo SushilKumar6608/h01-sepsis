@@ -1,23 +1,29 @@
-# H01 v2 — canonical feature list
+# H01 v2 - canonical feature list
 # Source of truth: src/preprocessing.py  FEATURES = TIER1 + TIER2
 # Dataset: PhysioNet / Computing in Cardiology Challenge 2019 (NOT MIMIC-III)
 # Window: 72 hours, step 1 hour; patient-level labels
 # Normalization: z-score computed on non-sepsis Set A train patients only
 #   saved as data/processed/mean_A.npy  (shape 14,)
 #                data/processed/std_A.npy   (shape 14,)
+#
+# Units use UCUM notation throughout.
+# DBP is a vital sign (measured at bedside); it was incorrectly placed in
+# Tier 2 (labs) in prior versions.
 
 features:
-  # --- Tier 1: vitals (7) ---
+  # --- Tier 1: vitals (8) ---
   - index: 0
     name: HR
     description: Heart rate
-    unit_canonical: beats/min
-    loinc: "8867-4"          # verify at loinc.org before production use
+    category: vital
+    unit_canonical: "/min"
+    loinc: "8867-4"
     global_median: 84.0
 
   - index: 1
     name: O2Sat
     description: Oxygen saturation (pulse ox)
+    category: vital
     unit_canonical: "%"
     loinc: "59408-5"
     global_median: 97.0
@@ -25,74 +31,84 @@ features:
   - index: 2
     name: Resp
     description: Respiratory rate
-    unit_canonical: breaths/min
+    category: vital
+    unit_canonical: "/min"
     loinc: "9279-1"
     global_median: 19.0
 
   - index: 3
     name: SBP
     description: Systolic blood pressure
-    unit_canonical: mmHg
+    category: vital
+    unit_canonical: "mm[Hg]"
     loinc: "8480-6"
     global_median: 122.0
 
   - index: 4
     name: MAP
     description: Mean arterial pressure
-    unit_canonical: mmHg
+    category: vital
+    unit_canonical: "mm[Hg]"
     loinc: "8478-0"
     global_median: 83.0
 
   - index: 5
     name: Temp
     description: Body temperature
-    unit_canonical: "°C"
+    category: vital
+    unit_canonical: "Cel"
     loinc: "8310-5"
     global_median: 37.0
-    note: "HL7v2 source may send °F — apply (F-32)*5/9 before storing"
+    note: "HL7v2 source may send Fahrenheit - apply (F-32)*5/9 before storing"
 
   - index: 6
     name: Glucose
-    description: Blood glucose
-    unit_canonical: mg/dL
+    description: Blood glucose (serum/plasma)
+    category: vital
+    unit_canonical: "mg/dL"
     loinc: "2345-7"
     global_median: 120.0
-    note: "FHIR source may send mmol/L — multiply by 18.016 to convert to mg/dL"
+    note: "FHIR source may send mmol/L - multiply by 18.016 to convert to mg/dL"
 
-  # --- Tier 2: labs (7) ---
   - index: 7
     name: DBP
     description: Diastolic blood pressure
-    unit_canonical: mmHg
+    category: vital
+    unit_canonical: "mm[Hg]"
     loinc: "8462-4"
     global_median: 64.0
 
+  # --- Tier 2: labs (6) ---
   - index: 8
     name: Creatinine
     description: Serum creatinine
-    unit_canonical: mg/dL
+    category: lab
+    unit_canonical: "mg/dL"
     loinc: "2160-0"
     global_median: 1.0
-    note: "µmol/L ÷ 88.4 = mg/dL"
+    note: "umol/L / 88.4 = mg/dL"
 
   - index: 9
     name: BUN
     description: Blood urea nitrogen
-    unit_canonical: mg/dL
+    category: lab
+    unit_canonical: "mg/dL"
     loinc: "3094-0"
     global_median: 18.0
-    note: "urea mmol/L ÷ 0.357 = BUN mg/dL"
+    note: "urea mmol/L / 0.357 = BUN mg/dL"
 
   - index: 10
     name: Potassium
     description: Serum potassium
-    unit_canonical: mEq/L
+    category: lab
+    unit_canonical: "mEq/L"
     loinc: "2823-3"
     global_median: 4.0
 
   - index: 11
     name: WBC
     description: White blood cell count
+    category: lab
     unit_canonical: "10*3/uL"
     loinc: "6690-2"
     global_median: 11.0
@@ -101,6 +117,7 @@ features:
   - index: 12
     name: Platelets
     description: Platelet count
+    category: lab
     unit_canonical: "10*3/uL"
     loinc: "777-3"
     global_median: 210.0
@@ -109,13 +126,16 @@ features:
   - index: 13
     name: Hgb
     description: Haemoglobin
-    unit_canonical: g/dL
+    category: lab
+    unit_canonical: "g/dL"
     loinc: "718-7"
     global_median: 10.5
-    note: "g/L ÷ 10 = g/dL"
+    note: "g/L / 10 = g/dL"
 
 metadata:
   n_features: 14
+  n_vitals: 8
+  n_labs: 6
   window_hours: 72
   window_step_hours: 1
   max_seq_len: 72
