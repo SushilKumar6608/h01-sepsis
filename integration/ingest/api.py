@@ -1,11 +1,10 @@
 """
-FastAPI ingest service — Phase 1
-==================================
+FastAPI ingest service - Phase 1 + Phase 4
+===========================================
 Exposes:
   POST /ingest/hl7v2      Accept one HL7v2 ORU^R01 message (plain text body)
   GET  /health            Liveness probe
-
-Phase 2 will add POST /ingest/fhir and GET /score/{encounter}.
+  POST /score             Run sepsis scoring for an already-ingested message
 
 Run (from repo root, Anaconda Prompt):
     cd D:\\Egna projekt\\h01-sepsis
@@ -22,8 +21,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from integration.canonical.db import get_db, init_db
+from integration.canonical.mapper import map_message
 from integration.ingest.hl7v2_parser import HL7v2ParseError, parse_message
-from integration.ingest.raw_store import DuplicateMessageError, store_raw
+from integration.ingest.raw_store import DuplicateMessageError, RawMessage, store_raw
+from integration.scoring.fhir_risk_assessment import build_risk_assessment
+from integration.scoring.scorer import score_observations
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ app = FastAPI(
 )
 
 
-# ── startup ───────────────────────────────────────────────────────────────────
+# -- startup ------------------------------------------------------------------
 
 @app.on_event("startup")
 def on_startup():
@@ -43,7 +45,7 @@ def on_startup():
     logger.info("Database initialised.")
 
 
-# ── endpoints ─────────────────────────────────────────────────────────────────
+# -- endpoints ----------------------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -112,3 +114,60 @@ async def ingest_hl7v2(request: Request, db: Session = Depends(get_db)):
         "observations": len(parsed.observations),
         "warnings": parsed.parse_warnings,
     }
+
+
+@app.post("/score", status_code=status.HTTP_200_OK)
+def score(control_id: str, db: Session = Depends(get_db)):
+    """
+    Run the sepsis scoring pipeline for an already-ingested HL7v2 message.
+
+    The caller supplies the control_id returned by POST /ingest/hl7v2.
+    Steps:
+      1. Look up the raw HL7v2 text stored in raw_messages.
+      2. Re-parse it to get a ParsedMessage.
+      3. Map observations to canonical LOINC codes via map_message().
+      4. Feed the feature sequence through the LSTM Autoencoder.
+      5. Return a FHIR R4 RiskAssessment JSON resource.
+
+    Returns
+    -------
+    200  FHIR R4 RiskAssessment dict
+    404  control_id not found
+    422  Raw message fails re-parse (should not happen in practice)
+    """
+    row: RawMessage | None = (
+        db.query(RawMessage)
+        .filter_by(source="hl7v2", control_id=control_id)
+        .first()
+    )
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"control_id '{control_id}' not found",
+        )
+
+    try:
+        parsed = parse_message(row.payload)
+    except HL7v2ParseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Re-parse error: {exc}",
+        )
+
+    mapped = map_message(parsed)
+    risk_score = score_observations(mapped.observations)
+    risk_assessment = build_risk_assessment(
+        score=risk_score,
+        patient_id=parsed.patient_id or control_id,
+        encounter_id=control_id,
+    )
+
+    logger.info(
+        "Scored control_id=%s risk=%s error=%.4f",
+        control_id,
+        risk_score.risk_level,
+        risk_score.reconstruction_error,
+    )
+
+    return risk_assessment
