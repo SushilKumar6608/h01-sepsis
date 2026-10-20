@@ -312,19 +312,3 @@ h01-sepsis/
 |- requirements.txt
 ```
 
----
-
-## Context
-
-Built as a portfolio project for a healthcare Forward Deployed AI Engineer
-interview. The project demonstrates:
-
-- Unsupervised anomaly detection applied to clinical time series.
-- A production-style integration layer: standards-based ingestion (HL7v2),
-  canonical coding (LOINC/UCUM), interoperability output (FHIR R4), and a
-  fully-tested REST API.
-- Cross-hospital generalisation analysis and honest reporting of distribution
-  shift (Set A -> Set B AUC drop from 0.926 to 0.762).
-
-The approach follows on from MSc thesis work on unsupervised anomaly detection
-in industrial IoT sequences, adapted to clinical settings.
